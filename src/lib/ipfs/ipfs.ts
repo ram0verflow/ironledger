@@ -73,9 +73,20 @@ export class IPFSService {
     }
     async getProject(cid: string): Promise<ProjectData> {
         try {
-            const response = await axios.post(`${this.baseUrl}/cat?arg=${cid}`, null, {
-                responseType: 'text'
-            });
+            // First ensure file exists by copying to MFS (IPFS Files)
+            await axios.post(
+                `${this.baseUrl}/files/cp?arg=/ipfs/${cid}&arg=/${cid}`,
+                null
+            );
+
+            // Then read from MFS
+            const response = await axios.post(
+                `${this.baseUrl}/files/read?arg=/${cid}`,
+                null,
+                {
+                    responseType: 'text'
+                }
+            );
 
             return JSON.parse(response.data);
         } catch (error) {
@@ -83,6 +94,7 @@ export class IPFSService {
             throw error;
         }
     }
+
 
     async pinContent(cid: string): Promise<void> {
         try {
