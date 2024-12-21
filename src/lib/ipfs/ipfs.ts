@@ -86,7 +86,8 @@ export class IPFSService {
 
     async pinContent(cid: string): Promise<void> {
         try {
-            await axios.post(`${this.baseUrl}/pin/add?arg=${cid}`);
+            const response = await axios.post(`${this.baseUrl}/pin/add?arg=${cid}`);
+            console.log(response)
         } catch (error) {
             console.error('Error pinning content:', error);
             throw error;

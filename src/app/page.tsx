@@ -1,151 +1,76 @@
-// src/app/page.tsx
-'use client'
+import Link from 'next/link'
+import { Search, Lock, ArrowRight } from 'lucide-react'
+import { orbitron } from './layout'
 
-import { useState } from 'react'
-import { ECPairFactory } from 'ecpair'
-import * as ecc from 'tiny-secp256k1'
-import { networks } from 'bitcoinjs-lib'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { KeyRound, Copy, RefreshCw } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import * as bitcoin from 'bitcoinjs-lib'
-const ECPair = ECPairFactory(ecc)
-
-export default function HomePage() {
-  const [privateKey, setPrivateKey] = useState('')
-  const [address, setAddress] = useState('')
-  const { toast } = useToast()
-
-  const generateNewKey = () => {
-    try {
-      const keyPair = ECPair.makeRandom({ network: networks.testnet })
-      const wif = keyPair.toWIF()
-      const { address } = bitcoin.payments.p2wpkh({
-        pubkey: Buffer.from(keyPair.publicKey),
-        network: networks.testnet
-      })
-
-      setPrivateKey(wif)
-      setAddress(address || '')
-
-      toast({
-        title: "New Key Generated",
-        description: "Make sure to save your private key securely."
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to generate new key pair.",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const copyToClipboard = (text: string, type: 'key' | 'address') => {
-    navigator.clipboard.writeText(text)
-    toast({
-      title: "Copied!",
-      description: `${type === 'key' ? 'Private key' : 'Address'} copied to clipboard.`
-    })
-  }
-
+export default function Home() {
   return (
-    <main className="container max-w-5xl py-10 space-y-8">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight">IronLedger</h1>
-        <p className="text-xl text-muted-foreground">
-          Transparent public fund management through blockchain technology
+    <div className="flex flex-col min-h-screen bg-background text-foreground font-mono">
+      <header className="border-b border-foreground/10 py-6">
+        <div className="container mx-auto px-4 flex items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 border-2 border-primary flex items-center justify-center">
+              <span className="text-primary font-display font-bold text-2xl">IL</span>
+            </div>
+            <h1 className="text-4xl font-display font-bold text-primary">
+              IronLedger
+            </h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-grow container mx-auto px-4 py-16">
+        <h2 className={`text-8xl text-white font-bold font-hero  text-center mb-8 text-secondary leading-tight ${orbitron.className}`}>
+          Welcome to<br />IronLedger
+        </h2>
+        <p className="text-center mb-16 max-w-2xl mx-auto text-foreground/80 text-lg leading-relaxed">
+          IronLedger is a cutting-edge blockchain-based transparency system that tracks public development funds.
+          Explore transactions or manage your wallet to participate in our ecosystem and help build a more accountable future.
         </p>
-      </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Management</CardTitle>
-            <CardDescription>Create and monitor public projects</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button className="w-full" asChild>
-              <a href="/projects/create">Create New Project</a>
-            </Button>
-            <Button variant="outline" className="w-full" asChild>
-              <a href="/projects">View Projects</a>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Testnet Key Management</CardTitle>
-            <CardDescription>Generate and manage Bitcoin testnet keys</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button
-              onClick={generateNewKey}
-              className="w-full"
-              variant="outline"
+        <div className="grid md:grid-cols-2 gap-12">
+          <div className="border border-foreground/10 p-6 hover:border-primary transition-all duration-300">
+            <div className="flex items-center space-x-3 text-3xl font-display mb-4">
+              <Search className="w-10 h-10 text-primary" />
+              <span>Explorer</span>
+            </div>
+            <p className="text-foreground/80 text-lg mb-6">
+              Access the public ledger to review all transactions, ensuring transparency and accountability in public fund management.
+            </p>
+            <Link
+              href="/explorer"
+              className="inline-flex items-center justify-center space-x-2 w-full border border-primary text-primary hover:bg-primary hover:text-background transition-colors duration-300 py-3 text-lg"
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Generate New Key
-            </Button>
+              <span>Go to Explorer</span>
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
 
-            {privateKey && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Private Key (WIF)</label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={privateKey}
-                      readOnly
-                      type="password"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(privateKey, 'key')}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+          <div className="border border-foreground/10 p-6 hover:border-secondary transition-all duration-300">
+            <div className="flex items-center space-x-3 text-3xl font-display mb-4">
+              <Lock className="w-10 text-white h-10 text-secondary" />
+              <span>Government Login</span>
+            </div>
+            <p className="text-foreground/80 text-lg mb-6">
+              Secure access for government officials to manage funds, approve transactions, and maintain the integrity of public development projects.
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center space-x-2 w-full border border-primary text-primary hover:bg-primary hover:text-background transition-colors duration-300 py-3 text-lg"
+            >
+              <span>Official Login</span>
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+          </div>
+        </div>
+      </main>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Address</label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={address}
-                      readOnly
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(address, 'address')}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <Alert>
-                  <KeyRound className="h-4 w-4" />
-                  <AlertDescription>
-                    Get testnet coins from a faucet to start using this address.
-                  </AlertDescription>
-                </Alert>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Alert>
-        <AlertDescription className="text-center">
-          Using Bitcoin Testnet for development. All transactions are for testing purposes only.
-        </AlertDescription>
-      </Alert>
-    </main>
+      <footer className="border-t border-foreground/10 py-8 mt-16">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-foreground/60 text-sm">&copy; 2023 IronLedger. All rights reserved.</p>
+          <p className="mt-2 text-foreground/40 text-xs">Empowering transparency and accountability through blockchain technology.</p>
+        </div>
+      </footer>
+    </div>
   )
 }
+
