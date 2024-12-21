@@ -1,24 +1,75 @@
 // src/app/projects/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Loader2, Plus, ExternalLink, FileText, Search } from "lucide-react"
-import Link from 'next/link'
+import { Loader2, Search } from "lucide-react"
 import { Project } from '../projects/page'
-
-
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isGovernment, setIsGovernment] = useState(false);
+
+    // Search and filter states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCity, setSelectedCity] = useState<string | null>(null);
+    const [selectedArea, setSelectedArea] = useState<string | null>(null);
+
+
+    // Extract unique cities and areas from projects
+    const { cities, areas } = useMemo(() => {
+        const cities = new Set<string>();
+        const areas = new Set<string>();
+
+        projects.forEach(project => {
+            if (project.data.location?.city) {
+                cities.add(project.data.location.city);
+            }
+            if (project.data.location?.area) {
+                areas.add(project.data.location.area);
+            }
+        });
+
+        return {
+            cities: Array.from(cities),
+            areas: Array.from(areas)
+        };
+    }, [projects]);
+
+    // Filtered projects based on search and location filters
+    const filteredProjects = useMemo(() => {
+        return projects.filter(project => {
+            // Search filter
+            const searchLower = searchQuery.toLowerCase();
+            const matchesSearch = searchLower === '' ? true : (
+                project.data.title?.toLowerCase().includes(searchLower) ||
+                project.data.description?.toLowerCase().includes(searchLower) ||
+                project.cid.toLowerCase().includes(searchLower) ||
+                project.data.contractor?.name?.toLowerCase().includes(searchLower)
+            );
+
+            // Location filters
+            const matchesCity = !selectedCity || project.data.location?.city === selectedCity;
+            const matchesArea = !selectedArea || project.data.location?.area === selectedArea;
+
+            return matchesSearch && matchesCity && matchesArea;
+        });
+    }, [projects, searchQuery, selectedCity, selectedArea]);
 
     useEffect(() => {
         const userAddress = localStorage.getItem('userAddress');
@@ -39,7 +90,18 @@ export default function ProjectsPage() {
         }
     };
 
+    const handleCityChange = (value: string) => {
+        setSelectedCity(value === 'all' ? null : value);
+    };
 
+    const handleAreaChange = (value: string) => {
+        setSelectedArea(value === 'all' ? null : value);
+    };
+    const handleResetFilters = () => {
+        setSearchQuery('');
+        setSelectedCity(null);
+        setSelectedArea(null);
+    };
 
     const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>, projectCid: string) => {
         e.preventDefault();
@@ -80,22 +142,79 @@ export default function ProjectsPage() {
 
     return (
         <div className="container py-10">
-
             <div className="flex flex-col gap-4">
-                <h1 className="text-3xl font-bold tracking-tight">Project Explorer</h1>
-                <div className="flex gap-2 my-4">
-                    <Input
-                        placeholder="Search by Transaction ID or IPFS Hash"
-                        className="max-w-xl"
-                    />
-                    <Button>
-                        <Search className="h-4 w-4 mr-2" />
-                        Search
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold tracking-tight">Project Explorer</h1>
+                    <Button
+                        variant="outline"
+                        onClick={handleResetFilters}
+                        size="sm"
+                    >
+                        Reset Filters
                     </Button>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-4">
+                    <div className="md:col-span-2">
+                        <Input
+                            placeholder="Search projects..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <Select
+                        value={selectedCity || 'all'}
+                        onValueChange={handleCityChange}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Filter by City" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Cities</SelectItem>
+                            {cities.map(city => (
+                                <SelectItem key={city} value={city}>
+                                    {city}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Select
+                        value={selectedArea || 'all'}
+                        onValueChange={handleAreaChange}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Filter by Area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Areas</SelectItem>
+                            {areas.map(area => (
+                                <SelectItem key={area} value={area}>
+                                    {area}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                {(searchQuery || selectedCity || selectedArea) && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>Showing {filteredProjects.length} of {projects.length} projects</span>
+                        {(selectedCity || selectedArea) && (
+                            <span>
+                                {selectedCity && `• City: ${selectedCity}`}
+                                {selectedArea && `• Area: ${selectedArea}`}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project) => (
+            <div className="text-sm text-muted-foreground">
+                Found {filteredProjects.length} projects
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                {filteredProjects.map((project) => (
                     <Card key={project.cid}>
                         <CardHeader>
                             <CardTitle>{project.data.title}</CardTitle>
@@ -108,6 +227,11 @@ export default function ProjectsPage() {
                             <p className="text-sm text-muted-foreground mb-4">
                                 {project.data.description}
                             </p>
+
+                            {/* Add location info */}
+                            <div className="text-sm text-muted-foreground mb-4">
+                                <p>📍 {project.data.location?.area}, {project.data.location?.city}</p>
+                            </div>
 
                             <div className="space-y-2">
                                 <div className="text-sm">
@@ -123,32 +247,10 @@ export default function ProjectsPage() {
                                     </code>
                                 </div>
                             </div>
-
-                            {/* {project.data.transactions?.length > 0 && (
-                                <div className="mt-4">
-                                    <h4 className="text-sm font-medium mb-2">Transactions</h4>
-                                    <div className="space-y-2">
-                                        {project.data.transactions.map((tx, i) => (
-                                            <div key={i} className="text-sm p-2 bg-muted rounded">
-                                                <div className="flex justify-between">
-                                                    <span>{tx.amount} BTC</span>
-                                                    <span>{new Date(tx.date).toLocaleDateString()}</span>
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {tx.description}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )} */}
-
-
                         </CardContent>
                     </Card>
                 ))}
             </div>
-
             {/* Add Transaction Dialog */}
             <Dialog open={!!selectedProject} onOpenChange={() => setSelectedProject(null)}>
                 <DialogContent>
