@@ -1,11 +1,6 @@
-// src/lib/ipfs/helia-service.ts
-import { createHelia } from 'helia'
-import { json } from '@helia/json'
-import { strings } from '@helia/strings'
-import { FsBlockstore } from 'blockstore-fs'
-import { MemoryBlockstore } from 'blockstore-core'
-import { CID } from 'multiformats/cid'
-import type { Helia } from '@helia/interface'
+// src/lib/ipfs/ipfs-service.ts
+import axios from 'axios';
+import FormData from 'form-data';
 
 export interface ProjectData {
     id: string;
@@ -21,179 +16,126 @@ export interface ProjectData {
         end: string;
     };
     department: string;
-    contractors: string[];
-    milestones: Array<{
-        title: string;
-        description: string;
-        deadline: string;
-        budget: number;
-        status: 'pending' | 'in_progress' | 'completed';
-    }>;
-    documents: Array<{
-        name: string;
-        hash: string;
-        type: string;
-    }>;
     status: 'proposed' | 'approved' | 'in_progress' | 'completed';
     lastUpdated: string;
-    signatures: string[];
 }
 
-export class HeliaService {
-    private helia: Helia;
-    private jsonEncoder: ReturnType<typeof json>;
-    private stringEncoder: ReturnType<typeof strings>;
-    private readonly isPersistent: boolean;
+export class IPFSService {
+    private baseUrl: string;
 
-    constructor(persistent: boolean = false) {
-        this.isPersistent = persistent;
+    constructor(port: number = 5001) {
+        this.baseUrl = `http://127.0.0.1:${port}/api/v0`;
     }
 
-    async initialize() {
+    async checkConnection(): Promise<boolean> {
         try {
-            // Choose blockstore based on persistence requirement
-            const blockstore = this.isPersistent
-                ? new FsBlockstore('./data/ipfs')
-                : new MemoryBlockstore();
-
-            // Create Helia instance
-            this.helia = await createHelia({
-                blockstore,
-                libp2p: {
-                    start: true,
-                }
-            });
-
-            // Initialize encoders
-            this.jsonEncoder = json(this.helia);
-            this.stringEncoder = strings(this.helia);
-
-            console.log('Helia node initialized with PeerId:', this.helia.libp2p.peerId);
-            return this;
+            const response = await axios.post(`${this.baseUrl}/id`);
+            console.log('IPFS Node ID:', response.data.ID);
+            return true;
         } catch (error) {
-            console.error('Error initializing Helia:', error);
-            throw error;
+            console.error('IPFS connection failed:', error);
+            return false;
         }
     }
-
     async publishProject(project: ProjectData): Promise<string> {
         try {
-            if (!this.helia) {
-                throw new Error('Helia not initialized');
-            }
+            // Create form data
+            const formData = new FormData();
+            const blob = new Blob([JSON.stringify(project)], {
+                type: 'application/json'
+            });
+            formData.append('path', Buffer.from(await blob.arrayBuffer()));
 
-            // Add data to IPFS using JSON encoder
-            const cid = await this.jsonEncoder.add(project);
+            const response = await axios.post(
+                `${this.baseUrl}/add`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    },
+                    // Important: Need these params for IPFS API
+                    params: {
+                        'stream-channels': true,
+                        'progress': false
+                    }
+                }
+            );
 
-            // Verify the data was stored correctly
-            const verification = await this.verifyData(cid, project);
-            if (!verification.isValid) {
-                throw new Error(`Data verification failed: ${verification.error}`);
-            }
+            const cid = response.data.Hash;
+            console.log(cid)
+            await this.pinContent(cid);
+            return cid;
 
-            return cid.toString();
         } catch (error) {
             console.error('Error publishing to IPFS:', error);
             throw error;
         }
     }
-
-    async getProject(cidString: string): Promise<ProjectData> {
+    async getProject(cid: string): Promise<ProjectData> {
         try {
-            if (!this.helia) {
-                throw new Error('Helia not initialized');
-            }
+            const response = await axios.post(`${this.baseUrl}/cat?arg=${cid}`, null, {
+                responseType: 'text'
+            });
 
-            const cid = CID.parse(cidString);
-            const data = await this.jsonEncoder.get(cid);
-
-            if (!this.isValidProjectData(data)) {
-                throw new Error('Invalid project data structure');
-            }
-
-            return data;
+            return JSON.parse(response.data);
         } catch (error) {
-            console.error('Error retrieving from IPFS:', error);
+            console.error('Error getting project from IPFS:', error);
             throw error;
         }
     }
 
-    private async verifyData(cid: CID, originalData: ProjectData): Promise<{ isValid: boolean; error?: string }> {
+    async pinContent(cid: string): Promise<void> {
         try {
-            const retrievedData = await this.jsonEncoder.get(cid);
-            const isValid = JSON.stringify(retrievedData) === JSON.stringify(originalData);
-            return { isValid };
-        } catch (error) {
-            return {
-                isValid: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
-            };
-        }
-    }
-
-    private isValidProjectData(data: any): data is ProjectData {
-        return (
-            data &&
-            typeof data.id === 'string' &&
-            typeof data.title === 'string' &&
-            typeof data.description === 'string' &&
-            typeof data.budget === 'object' &&
-            Array.isArray(data.contractors) &&
-            Array.isArray(data.milestones) &&
-            typeof data.status === 'string'
-        );
-    }
-
-    async addPin(cid: string): Promise<void> {
-        try {
-            if (!this.helia) {
-                throw new Error('Helia not initialized');
-            }
-
-            await this.helia.pins.add(CID.parse(cid));
+            await axios.post(`${this.baseUrl}/pin/add?arg=${cid}`);
         } catch (error) {
             console.error('Error pinning content:', error);
             throw error;
         }
     }
 
-    async removePin(cid: string): Promise<void> {
+    async unpinContent(cid: string): Promise<void> {
         try {
-            if (!this.helia) {
-                throw new Error('Helia not initialized');
-            }
-
-            await this.helia.pins.remove(CID.parse(cid));
+            await axios.post(`${this.baseUrl}/pin/rm?arg=${cid}`);
         } catch (error) {
             console.error('Error unpinning content:', error);
             throw error;
         }
     }
 
-    async getPins(): Promise<string[]> {
+    async listPins(): Promise<string[]> {
         try {
-            if (!this.helia) {
-                throw new Error('Helia not initialized');
-            }
-
-            const pins: string[] = [];
-            for await (const pin of this.helia.pins.ls()) {
-                pins.push(pin.toString());
-            }
-            return pins;
+            const response = await axios.post(`${this.baseUrl}/pin/ls`);
+            return Object.keys(response.data.Keys || {});
         } catch (error) {
-            console.error('Error getting pins:', error);
+            console.error('Error listing pins:', error);
             throw error;
         }
     }
 
-    async shutdown(): Promise<void> {
+    async getNodeInfo(): Promise<any> {
         try {
-            if (this.helia) {
-                await this.helia.stop();
-            }
+            const [idResponse, versionResponse] = await Promise.all([
+                axios.post(`${this.baseUrl}/id`),
+                axios.post(`${this.baseUrl}/version`)
+            ]);
+
+            return {
+                peerId: idResponse.data.ID,
+                version: versionResponse.data.Version,
+                addresses: idResponse.data.Addresses
+            };
         } catch (error) {
-            console.error('Error shutting down Helia:', error);
+            console.error('Error getting node info:', error);
+            throw error;
+        }
+    }
+
+    async getDagStats(cid: string): Promise<any> {
+        try {
+            const response = await axios.post(`${this.baseUrl}/dag/stat?arg=${cid}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error getting DAG stats:', error);
             throw error;
         }
     }
