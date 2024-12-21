@@ -6,18 +6,15 @@ const ipfs = new IPFSService();
 export async function GET() {
     try {
         // Get all pinned content
-        const response = await fetch('http://localhost:5001/api/v0/pin/ls');
-        const { Keys } = await response.json();
+        const response = await ipfs.listPins()
+
 
         // Fetch project data for each CID
         const projects = await Promise.all(
-            Object.keys(Keys).map(async (cid) => {
+            Object.keys(response).map(async (cid) => {
                 try {
                     // Get content for each CID
-                    const response = await fetch(
-                        `http://localhost:5001/api/v0/cat?arg=${cid}`
-                    );
-                    const data = await response.json();
+                    const data = await ipfs.getProject(cid)
 
                     // Only return if it's a valid project
                     if (data.title && data.description) {
@@ -34,8 +31,8 @@ export async function GET() {
         const validProjects = projects
             .filter(Boolean)
             .sort((a, b) => {
-                const dateA = new Date(a?.data.createdAt || 0);
-                const dateB = new Date(b?.data.createdAt || 0);
+                const dateA = new Date(a?.data.timeline.start || 0);
+                const dateB = new Date(b?.data.timeline.end || 0);
                 return dateB.getTime() - dateA.getTime();
             });
 
