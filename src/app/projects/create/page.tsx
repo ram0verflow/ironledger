@@ -8,196 +8,184 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage
-} from "@/components/ui/form"
-import { useForm } from "react-hook-form"
-import { Progress } from "@/components/ui/progress"
-import { Loader2 } from "lucide-react"
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
-interface ProjectFormData {
-    title: string;
-    description: string;
-    totalBudget: number;
-    department: string;
-    timeline: {
-        start: string;
-        end: string;
-    };
-    contractors: string[];
-}
+export default function CreateProject() {
+    const router = useRouter()
+    const [loading, setLoading] = useState(false)
 
-export default function CreateProjectPage() {
-    const router = useRouter();
-    const [isPublishing, setIsPublishing] = useState(false);
-    const [currentStep, setCurrentStep] = useState<string>('');
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setLoading(true)
 
-    const form = useForm<ProjectFormData>();
-
-    const onSubmit = async (data: ProjectFormData) => {
-        setIsPublishing(true);
         try {
-            // Step 1: Store in IPFS
-            setCurrentStep('Storing project data in IPFS...');
-            const ipfsResponse = await fetch('/api/ipfs/store', {
+            const formData = new FormData(e.currentTarget)
+            const projectData = {
+                id: crypto.randomUUID(),
+                title: formData.get('title'),
+                description: formData.get('description'),
+                department: formData.get('department'),
+                category: formData.get('category'),
+                location: {
+                    city: formData.get('city'),
+                    state: formData.get('state'),
+                    area: formData.get('area'),
+                },
+                budget: {
+                    total: parseFloat(formData.get('budget') as string),
+                    allocated: parseFloat(formData.get('budget') as string),
+                    spent: 0
+                },
+                timeline: {
+                    startDate: formData.get('startDate'),
+                    expectedEndDate: formData.get('endDate'),
+                    currentPhase: 'Initial'
+                },
+                stats: {
+                    completionPercentage: 0,
+                    milestonesCompleted: 0,
+                    totalMilestones: parseInt(formData.get('totalMilestones') as string)
+                },
+                contractor: {
+                    name: formData.get('contractorName'),
+                    address: formData.get('contractorAddress')
+                },
+                status: 'Proposed',
+                updates: [],
+                lastUpdated: new Date().toISOString()
+            }
+
+            const response = await fetch('/api/ipfs/store', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const { ipfsHash } = await ipfsResponse.json();
+                body: JSON.stringify(projectData)
+            })
 
-            // Step 2: Store in Bitcoin
-            setCurrentStep('Recording on Bitcoin network...');
-            const bitcoinResponse = await fetch('/api/bitcoin/store', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ipfsHash })
-            });
-            const { txId } = await bitcoinResponse.json();
+            if (!response.ok) throw new Error('Failed to create project')
 
-            // Step 3: Record the project reference
-            setCurrentStep('Finalizing project creation...');
-            await fetch('/api/projects/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ipfsHash, txId })
-            });
-
-            router.push(`/projects/${txId}`);
+            router.push('/projects')
+            router.refresh()
         } catch (error) {
-            console.error('Error creating project:', error);
+            console.error('Error creating project:', error)
         } finally {
-            setIsPublishing(false);
+            setLoading(false)
         }
-    };
+    }
 
     return (
         <div className="container max-w-3xl py-10">
             <Card>
                 <CardHeader>
-                    <CardTitle>Create New Project</CardTitle>
+                    <CardTitle>Create New Government Project</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                            <FormField
-                                control={form.control}
-                                name="title"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Project Title</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Enter project title" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Basic Information */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium">Basic Information</h3>
 
-                            <FormField
-                                control={form.control}
-                                name="description"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Description</FormLabel>
-                                        <FormControl>
-                                            <Textarea
-                                                placeholder="Detailed project description"
-                                                className="min-h-[100px]"
-                                                {...field}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="totalBudget"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Total Budget</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    placeholder="Enter amount"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="department"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Department</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    placeholder="Responsible department"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name="timeline.start"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Start Date</FormLabel>
-                                            <FormControl>
-                                                <Input type="date" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="timeline.end"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>End Date</FormLabel>
-                                            <FormControl>
-                                                <Input type="date" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-
-                            {isPublishing ? (
-                                <div className="space-y-4">
-                                    <Progress value={33} />
-                                    <p className="text-sm text-muted-foreground flex items-center">
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        {currentStep}
-                                    </p>
+                            <div className="grid gap-4">
+                                <div>
+                                    <label className="text-sm font-medium">Project Title</label>
+                                    <Input name="title" required />
                                 </div>
-                            ) : (
-                                <Button type="submit" className="w-full">
-                                    Publish Project
-                                </Button>
-                            )}
-                        </form>
-                    </Form>
+
+                                <div>
+                                    <label className="text-sm font-medium">Description</label>
+                                    <Textarea name="description" required />
+                                </div>
+
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm font-medium">Department</label>
+                                        <Input name="department" required />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm font-medium">Category</label>
+                                        <Select name="category" required>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Infrastructure">Infrastructure</SelectItem>
+                                                <SelectItem value="Healthcare">Healthcare</SelectItem>
+                                                <SelectItem value="Education">Education</SelectItem>
+                                                <SelectItem value="Technology">Technology</SelectItem>
+                                                <SelectItem value="Urban Development">Urban Development</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Location */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium">Location</h3>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium">City</label>
+                                    <Input name="city" required />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">State</label>
+                                    <Input name="state" required />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Area</label>
+                                    <Input name="area" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Budget & Timeline */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium">Budget & Timeline</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium">Budget (BTC)</label>
+                                    <Input name="budget" type="number" step="0.00000001" required />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Total Milestones</label>
+                                    <Input name="totalMilestones" type="number" required />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Start Date</label>
+                                    <Input name="startDate" type="date" required />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Expected End Date</label>
+                                    <Input name="endDate" type="date" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Contractor Information */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium">Contractor Information</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium">Contractor Name</label>
+                                    <Input name="contractorName" required />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Bitcoin Address (Testnet)</label>
+                                    <Input name="contractorAddress" required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <Button type="submit" className="w-full" disabled={loading}>
+                            {loading ? 'Creating Project...' : 'Create Project'}
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
         </div>

@@ -34,7 +34,7 @@ export default function Home() {
 
           <div className="border border-foreground/10 p-4 sm:p-6 hover:border-secondary transition-all duration-300">
             <div className="flex items-center space-x-3 text-2xl sm:text-3xl font-display mb-4">
-              <LogIn className="w-8 h-8 sm:w-10 sm:h-10 text-secondary" />
+              <LogIn className="w-8 h-8  sm:w-10 sm:h-10 text-foreground/100" />
               <span>Government Login</span>
             </div>
             <p className="text-foreground/80 text-sm sm:text-base mb-6">

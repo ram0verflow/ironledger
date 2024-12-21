@@ -7,11 +7,10 @@ export async function GET() {
     try {
         // Get all pinned content
         const response = await ipfs.listPins()
-
-
+        console.log(response)
         // Fetch project data for each CID
         const projects = await Promise.all(
-            Object.keys(response).map(async (cid) => {
+            response.map(async (cid) => {
                 try {
                     // Get content for each CID
                     const data = await ipfs.getProject(cid)

@@ -73,28 +73,31 @@ export class IPFSService {
     }
     async getProject(cid: string): Promise<ProjectData> {
         try {
-            // First ensure file exists by copying to MFS (IPFS Files)
-            await axios.post(
-                `${this.baseUrl}/files/cp?arg=/ipfs/${cid}&arg=/${cid}`,
-                null
-            );
-
-            // Then read from MFS
             const response = await axios.post(
-                `${this.baseUrl}/files/read?arg=/${cid}`,
+                `${this.baseUrl}/block/get?arg=${cid}`,
                 null,
                 {
-                    responseType: 'text'
+                    responseType: 'arraybuffer'  // Get as binary data
                 }
             );
 
-            return JSON.parse(response.data);
+            // Convert buffer to string and clean it
+            const text = Buffer.from(response.data)
+                .toString('utf8')
+                .replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
+
+            // Find the JSON part (looks for data between { and })
+            const jsonMatch = text.match(/\{.*\}/);
+            if (!jsonMatch) {
+                throw new Error('No valid JSON found in response');
+            }
+
+            return JSON.parse(jsonMatch[0]);
         } catch (error) {
             console.error('Error getting project from IPFS:', error);
             throw error;
         }
     }
-
 
     async pinContent(cid: string): Promise<void> {
         try {

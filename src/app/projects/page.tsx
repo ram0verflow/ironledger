@@ -9,19 +9,47 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Loader2, Plus, ExternalLink, FileText } from "lucide-react"
+import Link from 'next/link'
 
-interface Project {
+export interface Project {
     cid: string;
     data: {
+        id: string;
         title: string;
         description: string;
-        budget: number;
-        contractorAddress: string;
-        transactions?: Array<{
+        department: string;
+        category: 'Infrastructure' | 'Healthcare' | 'Education' | 'Technology' | 'Urban Development';
+        location: {
+            city: string;
+            state: string;
+            area: string;
+        };
+        budget: {
+            total: number;          // In BTC for demo
+            allocated: number;
+            spent: number;
+        };
+        timeline: {
+            startDate: string;
+            expectedEndDate: string;
+            currentPhase: string;
+        };
+        stats: {
+            completionPercentage: number;
+            milestonesCompleted: number;
+            totalMilestones: number;
+        };
+        contractor: {
+            name: string;
+            address: string;    // Bitcoin address
+        };
+        lastUpdated: string;
+        status: 'Proposed' | 'In Progress' | 'Completed' | 'Delayed';
+        updates: Array<{
             date: string;
-            amount: number;
             description: string;
-            txId: string;
+            amount?: number;
+            txId?: string;
         }>;
     };
 }
@@ -35,7 +63,7 @@ export default function ProjectsPage() {
 
     useEffect(() => {
         const userAddress = localStorage.getItem('userAddress');
-        const govAddress = process.env.NEXT_PUBLIC_GOVERNMENT_ADDRESS;
+        const govAddress = process.env.NEXT_PUBLIC_TESTNET_ADDR;
         setIsGovernment(userAddress === govAddress);
         fetchProjects();
     }, []);
@@ -52,35 +80,7 @@ export default function ProjectsPage() {
         }
     };
 
-    const handleCreateProject = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setLoading(true);
 
-        const formData = new FormData(e.currentTarget);
-        const projectData = {
-            title: formData.get('title'),
-            description: formData.get('description'),
-            budget: parseFloat(formData.get('budget') as string),
-            contractorAddress: formData.get('contractorAddress'),
-            transactions: []
-        };
-
-        try {
-            const response = await fetch('/api/projects/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(projectData)
-            });
-
-            if (!response.ok) throw new Error('Failed to create project');
-
-            await fetchProjects();
-        } catch (error) {
-            setError('Failed to create project');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>, projectCid: string) => {
         e.preventDefault();
@@ -124,45 +124,14 @@ export default function ProjectsPage() {
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold">Projects</h1>
                 {isGovernment && (
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <Button>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Create Project
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Create New Project</DialogTitle>
-                            </DialogHeader>
-                            <form onSubmit={handleCreateProject} className="space-y-4">
-                                <div className="space-y-2">
-                                    <label>Title</label>
-                                    <Input name="title" required />
-                                </div>
-                                <div className="space-y-2">
-                                    <label>Description</label>
-                                    <Textarea name="description" required />
-                                </div>
-                                <div className="space-y-2">
-                                    <label>Budget (BTC)</label>
-                                    <Input
-                                        name="budget"
-                                        type="number"
-                                        step="0.00000001"
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label>Contractor Address</label>
-                                    <Input name="contractorAddress" required />
-                                </div>
-                                <Button type="submit" disabled={loading}>
-                                    {loading ? 'Creating...' : 'Create Project'}
-                                </Button>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+
+                    <Link href="/projects/create">
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Project
+                        </Button>
+                    </Link>
+
                 )}
             </div>
 
@@ -172,7 +141,8 @@ export default function ProjectsPage() {
                         <CardHeader>
                             <CardTitle>{project.data.title}</CardTitle>
                             <CardDescription>
-                                Budget: {project.data.budget} BTC
+                                Budget: {project.data.budget?.allocated} BTC
+                                Spent: {project.data.budget?.spent} BTC
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -190,7 +160,7 @@ export default function ProjectsPage() {
                                 <div className="text-sm">
                                     <span className="font-medium">Contractor:</span>
                                     <code className="ml-2 p-1 bg-muted rounded text-xs">
-                                        {project.data.contractorAddress}
+                                        {project.data.contractor?.name}
                                     </code>
                                 </div>
                             </div>
