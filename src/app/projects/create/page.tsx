@@ -14,11 +14,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { Progress } from '@/components/ui/progress'
+import { Loader2 } from 'lucide-react'
 
 export default function CreateProject() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
-
+    const [currentStep, setCurrentStep] = useState<string>('');
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setLoading(true)
@@ -59,15 +61,29 @@ export default function CreateProject() {
                 updates: [],
                 lastUpdated: new Date().toISOString()
             }
-
+            setCurrentStep('Storing project data in IPFS...');
             const response = await fetch('/api/ipfs/store', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(projectData)
             })
-
+            const { cid } = await response.json()
+            console.log(cid)
             if (!response.ok) throw new Error('Failed to create project')
-
+            setCurrentStep('Recording on Bitcoin network...');
+            const bitcoinResponse = await fetch('/api/bitcoin/store', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ipfsHash: cid })
+            });
+            const { txId } = await bitcoinResponse.json();
+            // Step 3: Record the project reference
+            setCurrentStep('Finalizing project creation...');
+            await fetch('/api/projects/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ipfsHash: cid, txId })
+            });
             router.push('/projects')
             router.refresh()
         } catch (error) {
@@ -182,9 +198,19 @@ export default function CreateProject() {
                             </div>
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={loading}>
-                            {loading ? 'Creating Project...' : 'Create Project'}
-                        </Button>
+                        {loading ? (
+                            <div className="space-y-4">
+                                <Progress value={33} />
+                                <p className="text-sm text-muted-foreground flex items-center">
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    {currentStep}
+                                </p>
+                            </div>
+                        ) : (
+                            <Button type="submit" className="w-full">
+                                Publish Project
+                            </Button>
+                        )}
                     </form>
                 </CardContent>
             </Card>

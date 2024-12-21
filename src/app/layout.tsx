@@ -3,7 +3,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import './globals.css'
 import Link from 'next/link'
-
+import './custom-styles.css'
 export const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const robotoMono = Roboto_Mono({ subsets: ['latin'], variable: '--font-roboto-mono' })
 export const orbitron = Orbitron({ subsets: ['latin'], variable: '--font-orbitron' })
@@ -12,7 +12,7 @@ export const abrilFatface = Abril_Fatface({ weight: '400', subsets: ['latin'], v
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${robotoMono.variable} ${orbitron.variable} ${abrilFatface.variable} font-mono bg-background text-foreground`}>
+      <body className={`${inter.variable} ${robotoMono.variable} ${orbitron.variable} ${abrilFatface.variable} font-mono bg-background  backdrop-texture text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="min-h-screen flex flex-col">
             <header className="border-b border-foreground/10 py-4">
