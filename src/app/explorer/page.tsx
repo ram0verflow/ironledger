@@ -183,28 +183,32 @@ export default function ProjectsPage() {
             <div className="text-sm text-muted-foreground">
                 Found {filteredProjects.length} projects
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                {filteredProjects.map((project) => (
-                    <Card key={project.cid}>
-                        <div className="flex items-center justify-around">
 
-                            <CardHeader>
-                                <CardTitle>{project.data.title}</CardTitle>
-                                <CardDescription>
-                                    Budget: {project.data.budget?.allocated} BTC
-                                    Spent: {project.data.budget?.spent} BTC
+
+            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {filteredProjects.map((project) => (
+                    <Card key={project.cid} className="flex flex-col">
+                        <div className="flex items-center justify-between p-6">
+                            <CardHeader className="p-0">
+                                <CardTitle className="text-lg sm:text-xl">{project.data.title}</CardTitle>
+                                <CardDescription className="mt-2">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between">
+                                        <span className="mr-2">Budget: {project.data.budget?.allocated} BTC</span>
+                                        <span>Spent: {project.data.budget?.spent} BTC</span>
+                                    </div>
                                 </CardDescription>
                             </CardHeader>
-                            <ExternalLink className='text-foreground/60 text-sm cursor-pointer hover:text-foreground/100' onClick={() => {
-                                router.push(`/projects/${project.cid}`)
-                            }} />
+                            <ExternalLink
+                                className='text-foreground/60 text-sm cursor-pointer hover:text-foreground/100'
+                                onClick={() => router.push(`/projects/${project.cid}`)}
+                            />
                         </div>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">
+
+                        <CardContent className="flex-grow">
+                            <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                                 {project.data.description}
                             </p>
 
-                            {/* Add location info */}
                             <div className="text-sm text-muted-foreground mb-4">
                                 <p>📍 {project.data.location?.area}, {project.data.location?.city}</p>
                             </div>
@@ -212,22 +216,23 @@ export default function ProjectsPage() {
                             <div className="space-y-2">
                                 <div className="text-sm">
                                     <span className="font-medium">IPFS CID:</span>
-                                    <code className="ml-2 p-1 bg-muted rounded text-xs">
+                                    <code className="ml-2 p-1 bg-muted rounded text-xs break-all">
                                         {project.cid}
                                     </code>
                                 </div>
                                 <div className="text-sm">
                                     <span className="font-medium">Contractor:</span>
-                                    <code className="ml-2 p-1 bg-muted rounded text-xs">
+                                    <code className="ml-2 p-1 bg-muted rounded text-xs break-all">
                                         {project.data.contractor?.name}
                                     </code>
                                 </div>
                             </div>
+
+
                         </CardContent>
                     </Card>
                 ))}
             </div>
-
             {error && (
                 <Alert variant="destructive" className="mt-4">
                     <AlertDescription>{error}</AlertDescription>

@@ -11,14 +11,14 @@ export async function POST(
     { params }: { params: { cid: string } }
 ) {
     try {
-        const { contractorAddress } = await request.json()
-        if (!contractorAddress) {
+        const { contractorAddress, previousCid } = await request.json()
+        if (!contractorAddress || !previousCid) {
             return NextResponse.json(
                 { error: 'No Contractor Address passed' },
                 { status: 400 }
             );
         }
-        const transactions = await bitcoinService.getProjectTransactions(params.cid, process.env.NEXT_PUBLIC_TESTNET_ADDR!, contractorAddress);
+        const transactions = await bitcoinService.getProjectTransactions(params.cid, previousCid, process.env.NEXT_PUBLIC_TESTNET_ADDR!, contractorAddress);
         return NextResponse.json(transactions);
     } catch (error) {
         console.error('Error fetching transactions:', error);

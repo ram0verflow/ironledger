@@ -34,6 +34,8 @@ import { format } from 'date-fns'
 import { Milestone, ProjectData } from '@/lib/types/types'
 import { Badge } from '@/components/ui/badge'
 import { Transaction } from '@/lib/wallet/types'
+import { ProjectUpdateDialog } from '@/components/explorer/project-update-dialog'
+import { useProjectsAuth } from '@/hooks/use-auth'
 
 export default function ProjectPage({ params }: { params: Usable<{ cid: string }> }) {
     const router = useRouter()
@@ -41,6 +43,7 @@ export default function ProjectPage({ params }: { params: Usable<{ cid: string }
     const [loading, setLoading] = useState(true)
     const [txs, setTransaction] = useState<Transaction[]>([])
     const [showUpdateDialog, setShowUpdateDialog] = useState(false)
+    const { isGovernment } = useProjectsAuth();
     const { cid } = use(params)
     useEffect(() => {
 
@@ -59,7 +62,8 @@ export default function ProjectPage({ params }: { params: Usable<{ cid: string }
                 fetch(`/api/bitcoin/store/${cid}`, {
                     method: "POST",
                     body: JSON.stringify({
-                        contractorAddress: projectData.contractor.address
+                        contractorAddress: projectData.contractor.address,
+                        previousCid: projectData.updateHistory[projectData.updateHistory.length - 1]?.previousCid
                     })
                 }),
 
@@ -222,17 +226,17 @@ export default function ProjectPage({ params }: { params: Usable<{ cid: string }
                                                 <div>
                                                     <h4 className="text-sm font-medium">Total Paid</h4>
                                                     <p className="text-2xl font-bold">
-                                                        {(txs?.reduce((sum, tx) =>
-                                                            tx.type === 'payment' ? sum + tx.amount : sum, 0
-                                                        ) / 100000000).toFixed(8)} BTC
+                                                        {txs != null ? (txs?.reduce((sum, tx) =>
+                                                            tx?.type === 'payment' ? sum + tx?.amount : sum, 0
+                                                        ) / 100000000).toFixed(8) : 0} BTC
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <h4 className="text-sm font-medium">Last Update</h4>
                                                     <p className="text-2xl font-bold">
-                                                        {txs?.length ?
-                                                            format(new Date(txs[0].timestamp), 'MMM d') :
-                                                            'N/A'}
+                                                        {/* {txs?.length ?
+                                                            format(new Date(txs[0]?.timestamp), 'MMM d') :
+                                                            'N/A'} */}
                                                     </p>
                                                 </div>
                                             </div>
@@ -241,62 +245,62 @@ export default function ProjectPage({ params }: { params: Usable<{ cid: string }
 
                                     {/* Transaction List */}
                                     {txs?.map((tx: any) => (
-                                        <Card key={tx.txId}>
+                                        <Card key={tx?.txId}>
                                             <CardContent className="p-4">
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            {tx.type === 'payment' ? (
+                                                            {tx?.type === 'payment' ? (
                                                                 <Bitcoin className="h-4 w-4 text-green-500" />
-                                                            ) : tx.type === 'update' ? (
+                                                            ) : tx?.type === 'update' ? (
                                                                 <Edit className="h-4 w-4 text-blue-500" />
                                                             ) : (
                                                                 <Plus className="h-4 w-4 text-purple-500" />
                                                             )}
-                                                            <span className="font-medium capitalize">{tx.type}</span>
-                                                            {tx.type === 'payment' && (
+                                                            <span className="font-medium capitalize">{tx?.type}</span>
+                                                            {tx?.type === 'payment' && (
                                                                 <span className="text-sm text-green-600">
-                                                                    {(tx.amount / 100000000).toFixed(8)} BTC
+                                                                    {(tx?.amount / 100000000).toFixed(8)} BTC
                                                                 </span>
                                                             )}
                                                         </div>
                                                         <a
-                                                            href={`https://mempool.space/testnet/tx/${tx.txId}`}
+                                                            href={`https://mempool.space/testnet/tx/${tx?.txId}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-sm text-blue-500 hover:underline flex items-center mt-1"
                                                         >
-                                                            {tx.txId.substring(0, 8)}...{tx.txId.substring(58)}
+                                                            {tx?.txId.substring(0, 8)}...{tx?.txId.substring(58)}
                                                             <ExternalLink className="h-3 w-3 ml-1" />
                                                         </a>
                                                     </div>
                                                     <div className="text-right">
-                                                        <Badge variant={tx.status === 'confirmed' ? 'default' : 'secondary'}>
-                                                            {tx.status === 'confirmed' ? (
+                                                        <Badge variant={tx?.status === 'confirmed' ? 'default' : 'secondary'}>
+                                                            {tx?.status === 'confirmed' ? (
                                                                 <CheckCircle2 className="h-3 w-3 mr-1" />
                                                             ) : (
                                                                 <Clock className="h-3 w-3 mr-1" />
                                                             )}
-                                                            {tx.status}
+                                                            {tx?.status}
                                                         </Badge>
-                                                        <p className="text-sm text-muted-foreground mt-1">
-                                                            {format(new Date(tx.timestamp), 'PPp')}
-                                                        </p>
+                                                        {/* <p className="text-sm text-muted-foreground mt-1">
+                                                            {format(new Date(tx?.timestamp), 'PPp')}
+                                                        </p> */}
                                                     </div>
                                                 </div>
 
                                                 <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                                                     <div>
                                                         <span className="text-muted-foreground">Confirmations:</span>
-                                                        <span className="ml-2 font-medium">{tx.confirmations}</span>
+                                                        <span className="ml-2 font-medium">{tx?.confirmations}</span>
                                                     </div>
                                                     <div>
                                                         <span className="text-muted-foreground">Fee:</span>
-                                                        <span className="ml-2 font-medium">{tx.fee} sats</span>
+                                                        <span className="ml-2 font-medium">{tx?.fee} sats</span>
                                                     </div>
                                                     <div>
                                                         <span className="text-muted-foreground">Type:</span>
-                                                        <span className="ml-2 font-medium capitalize">{tx.type}</span>
+                                                        <span className="ml-2 font-medium capitalize">{tx?.type}</span>
                                                     </div>
                                                 </div>
                                             </CardContent>
@@ -343,20 +347,18 @@ export default function ProjectPage({ params }: { params: Usable<{ cid: string }
                                                     </div>
                                                 )}
 
-                                                {update.txId && (
-                                                    <a
-                                                        href={`https://mempool.space/testnet/tx/${update.txId}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="mt-2 text-sm text-blue-500 hover:underline flex items-center"
-                                                    >
-                                                        View Transaction
-                                                        <ExternalLink className="h-3 w-3 ml-1" />
-                                                    </a>
-                                                )}
+
+
                                             </CardContent>
+
                                         </Card>
                                     ))}
+                                    {isGovernment && (
+                                        <ProjectUpdateDialog
+                                            projectCid={cid}
+                                            existingMilestones={project.milestones}
+                                        />
+                                    )}
                                 </div>
                             </TabsContent>
                         </Tabs>

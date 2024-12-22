@@ -21,7 +21,7 @@ export class IPFSService {
             return false;
         }
     }
-    async publishProject(project: ProjectData): Promise<string> {
+    async publishProject(project: ProjectData, previousCid?: string): Promise<string> {
         try {
             // Create form data
             const formData = new FormData();
@@ -44,7 +44,17 @@ export class IPFSService {
                     }
                 }
             );
-
+            // Unpin previous version if it exists
+            if (previousCid) {
+                try {
+                    await fetch(`${this.baseUrl}/pin/rm?arg=${previousCid}`, {
+                        method: 'POST'
+                    });
+                } catch (error) {
+                    console.error('Error unpinning previous version:', error);
+                    // Continue even if unpin fails
+                }
+            }
             const cid = response.data.Hash;
             console.log(cid)
             await this.pinContent(cid);

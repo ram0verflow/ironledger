@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,9 @@ import { Milestone, ProjectData } from '@/lib/types/types'
 
 
 export default function CreateProject() {
+
+
+
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -29,7 +32,9 @@ export default function CreateProject() {
                 description: '',
                 expenditure: 0,
                 startDate: '',
-                endDate: ''
+                endDate: '',
+                status: 'pending',
+                completionPercentage: 0
             }
         ])
     }

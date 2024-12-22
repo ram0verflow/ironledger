@@ -43,10 +43,10 @@ export interface ProjectData {
     lastUpdated: string;
     status: 'Proposed' | 'In Progress' | 'Completed' | 'Delayed';
     updateHistory: Array<{
-        date: string;
-        description: string;
-        amount?: number;
-        txId?: string;
+        type?: string
+        data: any;
+        timestamp: string;
+        previousCid: string
     }>;
     version?: number
 }

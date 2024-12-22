@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen  text-foreground font-mono">
       <main className="flex-grow container mx-auto px-4 py-8 sm:py-16">
-        <h2 className={`text-4xl sm:text-5xl text-foreground/90 md:text-6xl font-hero font-normal text-center mb-6 sm:mb-8 text-secondary leading-tight ${orbitron.className}`}>
+        <h2 className={`text-4xl sm:text-5xl text-foreground/100 md:text-6xl font-hero font-normal text-center mb-6 sm:mb-8 leading-tight ${orbitron.className}`}>
           Welcome to<br />IronLedger
         </h2>
         <p className="text-center mb-8 sm:mb-16 max-w-2xl mx-auto text-foreground/80 text-base sm:text-lg leading-relaxed">

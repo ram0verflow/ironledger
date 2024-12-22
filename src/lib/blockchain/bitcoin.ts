@@ -3,6 +3,8 @@ import { networks, payments, Psbt, Signer } from 'bitcoinjs-lib';
 import { ECPairFactory } from 'ecpair';
 import * as ecc from 'tiny-secp256k1';
 import axios from 'axios';
+import * as bitcoin from 'bitcoinjs-lib';
+import { ProjectData } from '../types/types';
 
 const ECPair = ECPairFactory(ecc);
 
@@ -21,28 +23,72 @@ export class BitcoinService {
         this.mempoolUrl = config.mempoolUrl || 'https://mempool.space/api';
 
     }
-    async publishUpdate(updateData: string): Promise<string> {
+    async publishUpdate(
+        updateData: string,
+        privateKey: string,
+        recipientAddress?: string,
+        amount: number = 0
+    ): Promise<string> {
         try {
+            const keyPair = ECPair.fromWIF(privateKey, this.network);
+            const signer: Signer = {
+                publicKey: Buffer.from(keyPair.publicKey),
+                sign: (hash: Buffer): Buffer => {
+                    return Buffer.from(keyPair.sign(hash));
+                }
+            }
+            const { address } = payments.p2wpkh({ pubkey: Buffer.from(keyPair.publicKey), network: this.network });
+            console.log(address)
+            // Get UTXOs for the address
+            const utxos = await this.getUTXOs(address!);
+            if (!utxos.length) throw new Error('No UTXOs available');
+
+            // Create transaction with OP_RETURN
             const psbt = new Psbt({ network: this.network });
 
-            // Add inputs...
-
-            // Add OP_RETURN output with update data
-            psbt.addOutput({
-                script: payments.embed({
-                    data: [Buffer.from(updateData)]
-                }).output!,
-                value: 0
+            // Add input
+            psbt.addInput({
+                hash: utxos[0].txid,
+                index: utxos[0].vout,
+                witnessUtxo: {
+                    script: payments.p2wpkh({ pubkey: Buffer.from(keyPair.publicKey), network: this.network }).output!,
+                    value: utxos[0].value,
+                },
             });
 
-            // Rest of transaction building...
-            return txId;
+            // Add OP_RETURN output with IPFS hash
+            psbt.addOutput({
+                script: payments.embed({ data: [Buffer.from(updateData)] }).output!,
+                value: 0,
+            });
+
+            // Add change output (implement proper fee calculation in production)
+            const fee = 1000; // Example fee
+            if (recipientAddress) {
+                psbt.addOutput({
+                    address: recipientAddress,
+                    value: amount
+                })
+            }
+            psbt.addOutput({
+                address: address!,
+                value: utxos[0].value - fee,
+            });
+            // Sign and broadcast
+            psbt.signInput(0, signer);
+            psbt.finalizeAllInputs();
+
+            const tx = psbt.extractTransaction();
+            const txHex = tx.toHex();
+
+            // Broadcast transaction
+            const txid = await this.broadcastTransaction(txHex);
+            return txid;
         } catch (error) {
             console.error('Error publishing update:', error);
             throw error;
         }
     }
-
     async publishIPFSHash(ipfsHash: string, privateKey: string): Promise<string> {
         try {
             const keyPair = ECPair.fromWIF(privateKey, this.network);
@@ -138,13 +184,12 @@ export class BitcoinService {
 
             const data = Buffer.from(opReturnOutput.scriptpubkey_asm.split(' ')[2], 'hex').toString();
 
-            // Check if it's an update transaction
-            if (data.startsWith('UPDATE')) {
-                const [prevCid, newCid] = data.split(' ')[1].split(':');
+            if (data.startsWith('UPDATE') || data.startsWith('PAY')) {
+                const cid = data.split(':')[1];
+                console.log(data)
                 // Transaction is valid if it contains either the previous or new CID
-                return prevCid === targetCid || newCid === targetCid;
+                return cid == targetCid;
             }
-
             // Regular transaction verification...
             return data === targetCid;
         } catch (error) {
@@ -152,7 +197,7 @@ export class BitcoinService {
             return false;
         }
     }
-    async getProjectTransactions(cid: string, govAddress: string, contractorAddress: string): Promise<any[]> {
+    async getProjectTransactions(cid: string, prevCid: string, govAddress: string, contractorAddress: string): Promise<any[]> {
         try {
             // Get transactions for both addresses
             const [govTxs, contractorTxs] = await Promise.all([
@@ -167,10 +212,22 @@ export class BitcoinService {
             // Verify each transaction against the CID and get details
             const verifiedTxs = await Promise.all(
                 uniqueTxs.map(async (tx) => {
-                    const isVerified = await this.verifyTransactionWithCID(tx.txid, cid);
-                    if (!isVerified) return null;
-
                     const txDetails = await this.getTransactionDetails(tx.txid);
+                    const opReturnOutput = txDetails.vout.find(output =>
+                        output.scriptpubkey_type === 'op_return'
+                    );
+                    if (!opReturnOutput) return
+                    const data = Buffer.from(opReturnOutput.scriptpubkey_asm.split(' ')[2], 'hex').toString();
+                    // if (data.startsWith('UPDATE') || data.startsWith('PAY')) {
+                    //     const isVerified = await this.verifyTransactionWithCID(tx.txid, bitcoin.crypto.hash256(Buffer.from(`${prevCid}:${cid}`)).toString());
+                    //     if (!isVerified) return null;
+                    // }
+                    // else {
+
+                    //     const isVerified = await this.verifyTransactionWithCID(tx.txid, cid);
+                    //     if (!isVerified) return null;
+                    // }
+
                     return {
                         txId: tx.txid,
                         timestamp: tx.status.block_time * 1000,
@@ -195,14 +252,35 @@ export class BitcoinService {
         govAddress: string,
         contractorAddress: string
     ): 'payment' | 'update' | 'creation' {
-        // Check if transaction has value transfer to contractor
-        const hasPayment = txDetails.vout.some(output =>
+        // Find OP_RETURN output
+        const opReturnOutput = txDetails.vout.find(output =>
+            output.scriptpubkey_type === 'op_return'
+        );
+
+        if (!opReturnOutput) {
+            throw new Error('Invalid transaction for this project')
+        }
+
+        // Get OP_RETURN data
+        const data = Buffer.from(opReturnOutput.scriptpubkey_asm.split(' ')[1], 'hex').toString();
+
+        // Check if any output goes to contractor (payment)
+        const hasPaymentToContractor = txDetails.vout.some(output =>
             output.scriptpubkey_address === contractorAddress && output.value > 0
         );
 
-        return hasPayment ? 'payment' :
-            txDetails.vin[0].prevout.scriptpubkey_address === govAddress ? 'update' :
-                'creation';
+        // If it has payment, it's a payment type regardless of OP_RETURN content
+        if (hasPaymentToContractor) {
+            return 'payment';
+        }
+
+        // Check for project creation (empty OP_RETURN or just the initial CID)
+        if (data.startsWith('UPDATE')) {
+            return 'update';
+        }
+
+        // If no UPDATE prefix and no payment, it's a creation
+        return 'creation';
     }
 
     private calculateTransactionAmount(
@@ -216,6 +294,7 @@ export class BitcoinService {
             .reduce((sum, output) => sum + output.value, 0);
     }
     private async broadcastTransaction(txHex: string): Promise<string> {
+        console.log(txHex)
         const response = await axios.post(`${this.mempoolUrl}/tx`, txHex);
         return response.data.txid;
     }
