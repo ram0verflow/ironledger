@@ -12,6 +12,7 @@ export const abrilFatface = Abril_Fatface({ weight: '400', subsets: ['latin'], v
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+
       <body className={`${inter.variable} ${robotoMono.variable} ${orbitron.variable} ${abrilFatface.variable} font-mono bg-background  backdrop-texture text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="min-h-screen flex flex-col">
