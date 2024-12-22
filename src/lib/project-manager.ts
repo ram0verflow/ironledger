@@ -1,6 +1,7 @@
 // src/lib/project-manager.ts
-import { IPFSService, ProjectData } from './ipfs/ipfs';
+import { IPFSService } from './ipfs/ipfs';
 import { BitcoinService } from './blockchain/bitcoin';
+import { ProjectData } from './types/types';
 
 export interface ProjectReference {
     projectId: string;

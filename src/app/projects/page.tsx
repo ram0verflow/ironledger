@@ -8,51 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Loader2, Plus, ExternalLink, FileText } from "lucide-react"
+import { Loader2, Plus, ExternalLink } from "lucide-react"
 import Link from 'next/link'
-
-export interface Project {
-    cid: string;
-    data: {
-        id: string;
-        title: string;
-        description: string;
-        department: string;
-        category: 'Infrastructure' | 'Healthcare' | 'Education' | 'Technology' | 'Urban Development';
-        location: {
-            city: string;
-            state: string;
-            area: string;
-        };
-        budget: {
-            total: number;          // In BTC for demo
-            allocated: number;
-            spent: number;
-        };
-        timeline: {
-            startDate: string;
-            expectedEndDate: string;
-            currentPhase: string;
-        };
-        stats: {
-            completionPercentage: number;
-            milestonesCompleted: number;
-            totalMilestones: number;
-        };
-        contractor: {
-            name: string;
-            address: string;    // Bitcoin address
-        };
-        lastUpdated: string;
-        status: 'Proposed' | 'In Progress' | 'Completed' | 'Delayed';
-        updates: Array<{
-            date: string;
-            description: string;
-            amount?: number;
-            txId?: string;
-        }>;
-    };
-}
+import { Project } from '@/lib/types/types'
+import { useRouter } from 'next/navigation'
 
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -60,7 +19,7 @@ export default function ProjectsPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isGovernment, setIsGovernment] = useState(false);
-
+    const router = useRouter()
     useEffect(() => {
         const userAddress = localStorage.getItem('userAddress');
         const govAddress = process.env.NEXT_PUBLIC_TESTNET_ADDR;
@@ -136,19 +95,31 @@ export default function ProjectsPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {projects.map((project) => (
+                {projects?.map((project) => (
                     <Card key={project.cid}>
-                        <CardHeader>
-                            <CardTitle>{project.data.title}</CardTitle>
-                            <CardDescription>
-                                Budget: {project.data.budget?.allocated} BTC
-                                Spent: {project.data.budget?.spent} BTC
-                            </CardDescription>
-                        </CardHeader>
+                        <div className="flex items-center justify-around">
+
+                            <CardHeader>
+                                <CardTitle>{project.data.title}</CardTitle>
+                                <CardDescription>
+                                    Budget: {project.data.budget?.allocated} BTC
+                                    Spent: {project.data.budget?.spent} BTC
+                                </CardDescription>
+                            </CardHeader>
+                            <ExternalLink className='text-foreground/60 text-sm cursor-pointer hover:text-foreground/100' onClick={() => {
+                                router.push(`/projects/${project.cid}`)
+                            }} />
+                        </div>
+
                         <CardContent>
                             <p className="text-sm text-muted-foreground mb-4">
                                 {project.data.description}
                             </p>
+
+                            {/* Add location info */}
+                            <div className="text-sm text-muted-foreground mb-4">
+                                <p>📍 {project.data.location?.area}, {project.data.location?.city}</p>
+                            </div>
 
                             <div className="space-y-2">
                                 <div className="text-sm">

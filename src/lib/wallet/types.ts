@@ -7,3 +7,13 @@ export interface WalletProvider {
     isConnected(): Promise<boolean>;
     getAddress(): Promise<string>;
 }
+export interface Transaction {
+
+    txId: string,
+    timestamp: number
+    confirmations: number,
+    type: 'payment' | 'update' | 'creation'
+    amount: number
+    fee: number
+    status: 'confirmed' | 'pending'
+}

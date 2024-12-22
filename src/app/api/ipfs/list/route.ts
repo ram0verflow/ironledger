@@ -30,8 +30,8 @@ export async function GET() {
         const validProjects = projects
             .filter(Boolean)
             .sort((a, b) => {
-                const dateA = new Date(a?.data.timeline.start || 0);
-                const dateB = new Date(b?.data.timeline.end || 0);
+                const dateA = new Date(a?.data.timeline?.start || 0);
+                const dateB = new Date(b?.data.timeline?.end || 0);
                 return dateB.getTime() - dateA.getTime();
             });
 

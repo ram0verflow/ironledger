@@ -1,24 +1,8 @@
 // src/lib/ipfs/ipfs-service.ts
 import axios from 'axios';
 import FormData from 'form-data';
+import { ProjectData } from '../types/types';
 
-export interface ProjectData {
-    id: string;
-    title: string;
-    description: string;
-    budget: {
-        total: number;
-        allocated: number;
-        spent: number;
-    };
-    timeline: {
-        start: string;
-        end: string;
-    };
-    department: string;
-    status: 'proposed' | 'approved' | 'in_progress' | 'completed';
-    lastUpdated: string;
-}
 
 export class IPFSService {
     private baseUrl: string;

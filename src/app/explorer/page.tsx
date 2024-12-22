@@ -16,19 +16,21 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Loader2, Search } from "lucide-react"
-import { Project } from '../projects/page'
+import { ExternalLink, Loader2, Search } from "lucide-react"
+import { Project } from '@/lib/types/types'
+import { useRouter } from 'next/navigation'
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [isGovernment, setIsGovernment] = useState(false);
 
     // Search and filter states
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCity, setSelectedCity] = useState<string | null>(null);
     const [selectedArea, setSelectedArea] = useState<string | null>(null);
+
+    const router = useRouter()
 
 
     // Extract unique cities and areas from projects
@@ -72,9 +74,6 @@ export default function ProjectsPage() {
     }, [projects, searchQuery, selectedCity, selectedArea]);
 
     useEffect(() => {
-        const userAddress = localStorage.getItem('userAddress');
-        const govAddress = process.env.NEXT_PUBLIC_TESTNET_ADDR;
-        setIsGovernment(userAddress === govAddress);
         fetchProjects();
     }, []);
 
@@ -101,35 +100,6 @@ export default function ProjectsPage() {
         setSearchQuery('');
         setSelectedCity(null);
         setSelectedArea(null);
-    };
-
-    const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>, projectCid: string) => {
-        e.preventDefault();
-        setLoading(true);
-
-        const formData = new FormData(e.currentTarget);
-        const transactionData = {
-            amount: parseFloat(formData.get('amount') as string),
-            description: formData.get('description'),
-            date: new Date().toISOString()
-        };
-
-        try {
-            const response = await fetch(`/api/projects/${projectCid}/append`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(transactionData)
-            });
-
-            if (!response.ok) throw new Error('Failed to add transaction');
-
-            await fetchProjects();
-            setSelectedProject(null);
-        } catch (error) {
-            setError('Failed to add transaction');
-        } finally {
-            setLoading(false);
-        }
     };
 
     if (loading) {
@@ -216,13 +186,19 @@ export default function ProjectsPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
                 {filteredProjects.map((project) => (
                     <Card key={project.cid}>
-                        <CardHeader>
-                            <CardTitle>{project.data.title}</CardTitle>
-                            <CardDescription>
-                                Budget: {project.data.budget?.allocated} BTC
-                                Spent: {project.data.budget?.spent} BTC
-                            </CardDescription>
-                        </CardHeader>
+                        <div className="flex items-center justify-around">
+
+                            <CardHeader>
+                                <CardTitle>{project.data.title}</CardTitle>
+                                <CardDescription>
+                                    Budget: {project.data.budget?.allocated} BTC
+                                    Spent: {project.data.budget?.spent} BTC
+                                </CardDescription>
+                            </CardHeader>
+                            <ExternalLink className='text-foreground/60 text-sm cursor-pointer hover:text-foreground/100' onClick={() => {
+                                router.push(`/projects/${project.cid}`)
+                            }} />
+                        </div>
                         <CardContent>
                             <p className="text-sm text-muted-foreground mb-4">
                                 {project.data.description}
@@ -251,32 +227,6 @@ export default function ProjectsPage() {
                     </Card>
                 ))}
             </div>
-            {/* Add Transaction Dialog */}
-            <Dialog open={!!selectedProject} onOpenChange={() => setSelectedProject(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add Transaction to {selectedProject?.data.title}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={(e) => selectedProject && handleAddTransaction(e, selectedProject.cid)} className="space-y-4">
-                        <div className="space-y-2">
-                            <label>Amount (BTC)</label>
-                            <Input
-                                name="amount"
-                                type="number"
-                                step="0.00000001"
-                                required
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label>Description</label>
-                            <Textarea name="description" required />
-                        </div>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? 'Adding...' : 'Add Transaction'}
-                        </Button>
-                    </form>
-                </DialogContent>
-            </Dialog>
 
             {error && (
                 <Alert variant="destructive" className="mt-4">
